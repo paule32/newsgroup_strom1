@@ -1,7 +1,7 @@
 object Form1: TForm1
   Left = 84
   Top = 163
-  Width = 988
+  Width = 1013
   Height = 510
   Caption = 'Form1'
   Color = clBtnFace
@@ -14,12 +14,12 @@ object Form1: TForm1
   OldCreateOrder = False
   OnCreate = FormCreate
   DesignSize = (
-    972
+    997
     451)
   PixelsPerInch = 96
   TextHeight = 13
   object PaintBox1: TPaintBox
-    Left = 872
+    Left = 897
     Top = 120
     Width = 73
     Height = 65
@@ -27,19 +27,20 @@ object Form1: TForm1
     Color = clAqua
     ParentColor = False
     OnClick = PaintBox1Click
+    OnMouseDown = PaintBox1MouseDown
     OnPaint = PaintBox1Paint
   end
   object StatusBar1: TStatusBar
     Left = 0
     Top = 432
-    Width = 972
+    Width = 997
     Height = 19
     Panels = <>
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 972
+    Width = 997
     Height = 49
     Align = alTop
     Caption = 'S H A R E W A R E  -   V E R S I O N'
@@ -51,7 +52,7 @@ object Form1: TForm1
     ParentFont = False
     TabOrder = 1
     DesignSize = (
-      972
+      997
       49)
     object SpeedButton1: TSpeedButton
       Left = 8
@@ -60,7 +61,7 @@ object Form1: TForm1
       Height = 41
     end
     object SpeedButton2: TSpeedButton
-      Left = 864
+      Left = 889
       Top = 0
       Width = 97
       Height = 41
@@ -70,7 +71,7 @@ object Form1: TForm1
   object PageControl1: TPageControl
     Left = 0
     Top = 49
-    Width = 857
+    Width = 882
     Height = 383
     ActivePage = TabSheet2
     Align = alLeft
@@ -91,12 +92,12 @@ object Form1: TForm1
       Font.Style = []
       ParentFont = False
       DesignSize = (
-        849
+        874
         355)
       object ScrollBox1: TScrollBox
         Left = 8
         Top = 8
-        Width = 833
+        Width = 858
         Height = 335
         Anchors = [akLeft, akTop, akRight, akBottom]
         Color = clBtnHighlight
@@ -105,7 +106,7 @@ object Form1: TForm1
         object RichEdit1: TRichEdit
           Left = 0
           Top = 0
-          Width = 812
+          Width = 837
           Height = 257
           Align = alTop
           BorderStyle = bsNone
@@ -153,7 +154,7 @@ object Form1: TForm1
       object ScrollBox2: TScrollBox
         Left = 0
         Top = 0
-        Width = 849
+        Width = 874
         Height = 355
         Align = alClient
         TabOrder = 0
@@ -299,25 +300,27 @@ object Form1: TForm1
         object JvDesignScrollBox1: TJvDesignScrollBox
           Left = 373
           Top = 0
-          Width = 472
+          Width = 497
           Height = 351
           Align = alClient
           TabOrder = 2
           object JvDesignPanel1: TJvDesignPanel
             Left = 0
             Top = 0
-            Width = 468
+            Width = 493
             Height = 347
             Align = alClient
             Caption = 'JvDesignPanel1'
             TabOrder = 0
+            OnDragDrop = JvDesignPanel1DragDrop
+            OnDragOver = JvDesignPanel1DragOver
           end
         end
       end
     end
   end
   object Button1: TButton
-    Left = 873
+    Left = 898
     Top = 398
     Width = 75
     Height = 25
@@ -327,7 +330,7 @@ object Form1: TForm1
     OnClick = Button1Click
   end
   object Button2: TButton
-    Left = 872
+    Left = 897
     Top = 72
     Width = 75
     Height = 25
@@ -340,6 +343,20 @@ object Form1: TForm1
     Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 4
+  end
+  object Edit1: TEdit
+    Left = 408
+    Top = 256
+    Width = 209
+    Height = 26
+    Font.Charset = ANSI_CHARSET
+    Font.Color = clBlack
+    Font.Height = -15
+    Font.Name = 'Arial'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 5
+    Text = 'Edit1'
   end
   object MainMenu1: TMainMenu
     Left = 120

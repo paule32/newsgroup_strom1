@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls, Buttons, Grids,
+  Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls, Buttons, Grids, bigMath,
   JvDesignSurface, JvComponentBase, JvInspector, JvExControls;
 
 type
@@ -49,9 +49,9 @@ type
     ComboBox2: TComboBox;
     ListBox2: TListBox;
     PaintBox1: TPaintBox;
+    Edit1: TEdit;
     procedure Button1Click(Sender: TObject);
     procedure Beenden1Click(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
     procedure DrawGrid1DrawCell(Sender: TObject; ACol, ARow: Integer;
       Rect: TRect; State: TGridDrawState);
     procedure DrawGrid1SelectCell(Sender: TObject; ACol, ARow: Integer;
@@ -59,6 +59,7 @@ type
     procedure DrawGrid1Click(Sender: TObject);
     procedure DateiSpeichern1Click(Sender: TObject);
     procedure DateiLaden1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure ListBox1DrawItem(Control: TWinControl; Index: Integer;
       Rect: TRect; State: TOwnerDrawState);
@@ -67,6 +68,12 @@ type
     procedure PaintBox1Paint(Sender: TObject);
     procedure ListBox1Click(Sender: TObject);
     procedure PaintBox1Click(Sender: TObject);
+    procedure PaintBox1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure JvDesignPanel1DragOver(Sender, Source: TObject; X,
+      Y: Integer; State: TDragState; var Accept: Boolean);
+    procedure JvDesignPanel1DragDrop(Sender, Source: TObject; X,
+      Y: Integer);
   private
     ID_ComboBox:   Array[0..20] of TComboBox;
     TYPE_ComboBox: Array[0..20] of TComboBox;
@@ -84,6 +91,8 @@ type
     IconBitmapChanged : LongBool;
     IconBitmapError   : LongBool;
 
+    MathSolver : TBigMathSolver;
+
     procedure ComboBox_Exit(Sender: TObject);
   public
     destructor Destroy;
@@ -94,8 +103,6 @@ var
 
 implementation
 
-uses maprotation;
-
 type
   TEigenschaften = Record
     Farbe: TColor;
@@ -105,88 +112,226 @@ type
 
 {$R *.dfm}
 
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  rs: TResourceStream;
+  bmp: TBitmap;
+  i,j: Integer;
+begin
+    rs := TResourceStream.Create(
+          hInstance,
+          PChar('ohmGesetz'),
+          RT_RCDATA);
+    try
+      rs.Position := 0;
+      RichEdit1.PlainText := false;
+      RichEdit1.Lines.LoadFromStream(rs);
+    finally
+      rs.Free;
+    end;
+
+    rs  := TResourceStream.Create(
+           hInstance,
+           PChar('spenden'),
+           RT_BITMAP);
+    bmp := TBitmap.Create;
+    try
+      rs.Position;
+      bmp.LoadFromResourceName(hInstance,'spenden');
+      SpeedButton1.Glyph := bmp;
+      SpeedButton2.Glyph := bmp;
+    finally
+      bmp.Free;
+      rs.Free;
+    end;
+(*
+    840 : 32 = 280    840 : 2 = 420    280
+   -6                -8               +420
+   -----             ------           -----
+    24                04               700
+   -24               -040
+   -----             ------
+     00                00
+*)
+    MathSolver := TBigMathSolver.Create;
+    MathSolver.Push('840');
+    MathSolver.Push('320' );
+
+//    MathSolver.Push('00111111111111111111111111111111111111111111111111111111111111111111');
+
+    MathSolver.Push(Division);
+    Edit1.Text := MathSolver.calc;
+
+    Elektro_Types := TStringList.Create;
+    with Elektro_Types do begin
+      Add('Stromquelle');
+      Add('Draht');
+      Add('Widerstand');
+      Add('Kondensator');
+    end;
+
+    PaintBox1.Height := 64;
+    PaintBox1.Width  := 64;
+
+    oldIconBitmap        := TBitmap.Create;
+    oldIconBitmap.Width  := PaintBox1.Width;
+    oldIconBitmap.Height := PaintBox1.Height;
+
+    newIconBitmap        := TBitmap.Create;
+    newIconBitmap.Width  := PaintBox1.Width;
+    newIconBitmap.Height := PaintBox1.Height;
+
+    IconBitmapChanged    := false;
+
+    DrawGrid1.ColWidths[0] := 10;
+    DrawGrid1.ColWidths[2] := 180;
+    DrawGrid1.ColWidths[3] := 90;
+    DrawGrid1.ColWidths[4] := 90;
+    DrawGrid1.ColWidths[5] := 90;
+    DrawGrid1.ColWidths[6] := 90;
+
+    for i := 0 to 20 do begin
+      ID_ComboBox[i] := TComboBox.Create(DrawGrid1);
+      try
+        with ID_ComboBox[i] do begin
+          Visible := false;
+          Parent  := DrawGrid1;
+          OnExit  := ComboBox_Exit;
+
+          Items.BeginUpdate;
+          for j := 0 to 20 do
+          Items.Add(IntToStr(j+1));
+          Items.EndUpdate;
+        end
+      finally
+        //ID_ComboBox[i].Free;
+      end;
+    end;
+
+    for i := 0 to 20 do begin
+      TYPE_ComboBox[i] := TComboBox.Create(DrawGrid1);
+      try
+        with TYPE_ComboBox[i] do begin
+          Parent  := DrawGrid1;
+          Visible := false;
+          OnExit  := ComboBox_Exit;
+
+          Items.BeginUpdate;
+          Items.AddStrings(Elektro_Types);
+          Items.EndUpdate;
+        end;
+      finally
+        //TYPE_ComboBox[i].Free;
+      end;
+    end;
+
+    for i := 0 to 20 do begin
+      IN_ComboBox[i] := TComboBox.Create(DrawGrid1);
+      try
+        with IN_ComboBox[i] do begin
+          Parent  := DrawGrid1;
+          Visible := false;
+          OnExit  := ComboBox_Exit;
+
+          Items.BeginUpdate;
+          for j := 0 to 20 do
+          Items.Add(IntToStr(j+1));
+          Items.EndUpdate;
+        end;
+      finally
+        //IN_ComboBox[i].Free;
+      end;
+    end;
+
+    for i := 0 to 20 do
+    begin
+      OUT_ComboBox[i] := TComboBox.Create(DrawGrid1);
+      try
+        with OUT_ComboBox[i] do begin
+          Parent  := DrawGrid1;
+          Visible := false;
+          OnExit  := ComboBox_Exit;
+
+          Items.BeginUpdate;
+          for j := 0 to 20 do
+          Items.Add(IntToStr(j+1));
+          Items.EndUpdate;
+        end;
+      finally
+        //OUT_ComboBox[i].Free;
+      end;
+    end;
+
+    for i := 0 to 20 do
+    begin
+      OHM_Edit[i] := TEdit.Create(DrawGrid1);
+      OHM_Edit[i].Parent := DrawGrid1;
+      OHM_Edit[i].Visible := false;
+
+      AMPERE_Edit[i] := TEdit.Create(DrawGrid1);
+      AMPERE_Edit[i].Parent := DrawGrid1;
+      AMPERE_Edit[i].Visible := false;
+
+      VOLT_Edit[i] := TEdit.Create(DrawGrid1);
+      VOLT_Edit[i].Parent := DrawGrid1;
+      VOLT_Edit[i].Visible := false;
+    end;
+end;
+
 destructor TForm1.Destroy;
 var
   i: Integer;
 begin
-  Elektro_Types.Clear;
   Elektro_Types.Free;
   Elektro_Types := nil;
 
-  oldIconBitmap.FreeImage;
   oldIconBitmap.Free;
-
-  newIconBitmap.FreeImage;
   newIconBitmap.Free;
 
+  MathSolver.Free;
+
   for i := 0 to Length(VOLT_Edit) - 1 do begin
-    VOLT_Edit[i].ClearSelection;
-    VOLT_Edit[i].ClearUndo;
-    VOLT_Edit[i].Clear;
     VOLT_Edit[i].Free;
     VOLT_Edit[i] := nil;
   end;
 
   for i := 0 to Length(AMPERE_Edit) - 1 do begin
-    AMPERE_Edit[i].ClearSelection;
-    AMPERE_Edit[i].ClearUndo;
-    AMPERE_Edit[i].Clear;
     AMPERE_Edit[i].Free;
     AMPERE_Edit[i] := nil;
   end;
 
   for i := 0 to Length(OHM_Edit) - 1 do begin
-    OHM_Edit[i].ClearSelection;
-    OHM_Edit[i].ClearUndo;
-    OHM_Edit[i].Clear;
     OHM_Edit[i].Free;
     OHM_Edit[i] := nil;
   end;
 
-  for i := 0 to Length(OUT_ComboBox) - 1 do begin
-    OUT_ComboBox[i].Items.Clear;
-    OUT_ComboBox[i].Items.Free;
-    OUT_ComboBox[i].Clear;
+  for i := (Length(OUT_ComboBox) - 1) downto 0 do begin
     OUT_ComboBox[i].Free;
     OUT_ComboBox[i] := nil;
   end;
 
-  for i := 0 to Length(IN_ComboBox) - 1 do begin
-    IN_ComboBox[i].Items.Clear;
-    IN_ComboBox[i].Items.Free;
-    IN_ComboBox[i].Clear;
+  for i := (Length(IN_ComboBox) - 1) downto 0 do begin
     IN_ComboBox[i].Free;
     IN_ComboBox[i] := nil;
   end;
 
-  for i := 0 to Length(TYPE_ComboBox) - 1 do begin
-    TYPE_ComboBox[i].Items.Clear;
-    TYPE_ComboBox[i].Items.Free;
-    TYPE_ComboBox[i].Clear;
+  for i := (Length(TYPE_ComboBox) - 1) downto 0 do begin
     TYPE_ComboBox[i].Free;
     TYPE_ComboBox[i] := nil;
   end;
 
-  ComboBox1.Items.Clear;
-  ComboBox1.Items.Free;
   ComboBox1.Clear;
   ComboBox1.Free;
   ComboBox1 := nil;
 
-  ComboBox2.Items.Clear;
-  ComboBox2.Items.Free;
   ComboBox2.Clear;
   ComboBox2.Free;
   ComboBox2 := nil;
 
-  ListBox1.Items.Clear;
-  ListBox1.Items.Free;
   ListBox1.Clear;
   ListBox1.Free;
   ListBox1 := nil;
 
-  ListBox2.Items.Clear;
-  ListBox2.Items.Free;
   ListBox2.Clear;
   ListBox2.Free;
   ListBox2 := nil;
@@ -205,155 +350,6 @@ end;
 procedure TForm1.Beenden1Click(Sender: TObject);
 begin
   Close;
-end;
-
-procedure TForm1.FormCreate(Sender: TObject);
-var
-  rs: TResourceStream;
-  bmp: TBitmap;
-  i,j: Integer;
-begin
-  rs := TResourceStream.Create(
-        hInstance,
-        PChar('ohmGesetz'),
-        RT_RCDATA);
-  try
-    rs.Position := 0;
-    RichEdit1.PlainText := false;
-    RichEdit1.Lines.LoadFromStream(rs);
-  finally
-    rs.Free;
-  end;
-
-  rs  := TResourceStream.Create(
-         hInstance,
-         PChar('spenden'),
-         RT_BITMAP);
-  bmp := TBitmap.Create;
-  try
-    rs.Position;
-    bmp.LoadFromResourceName(hInstance,'spenden');
-    SpeedButton1.Glyph := bmp;
-    SpeedButton2.Glyph := bmp;
-  finally
-    bmp.Free;
-    rs.Free;
-  end;
-
-  Elektro_Types := TStringList.Create;
-  with Elektro_Types do begin
-    Add('Stromquelle');
-    Add('Draht');
-    Add('Widerstand');
-    Add('Kondensator');
-  end;
-
-  PaintBox1.Height := 78;
-  PaintBox1.Width  := 78;
-
-  oldIconBitmap        := TBitmap.Create;
-  oldIconBitmap.Width  := PaintBox1.Width;
-  oldIconBitmap.Height := PaintBox1.Height;
-
-  newIconBitmap        := TBitmap.Create;
-  newIconBitmap.Width  := PaintBox1.Width;
-  newIconBitmap.Height := PaintBox1.Height;
-
-  IconBitmapChanged    := false;
-
-  DrawGrid1.ColWidths[0] := 10;
-  DrawGrid1.ColWidths[2] := 180;
-  DrawGrid1.ColWidths[3] := 90;
-  DrawGrid1.ColWidths[4] := 90;
-  DrawGrid1.ColWidths[5] := 90;
-  DrawGrid1.ColWidths[6] := 90;
-
-  for i := 0 to 20 do begin
-    ID_ComboBox[i] := TComboBox.Create(DrawGrid1);
-    try
-      with ID_ComboBox[i] do begin
-        Visible := false;
-        Parent  := DrawGrid1;
-        OnExit  := ComboBox_Exit;
-
-        Items.BeginUpdate;
-        for j := 0 to 20 do
-        Items.Add(IntToStr(j+1));
-        Items.EndUpdate;
-      end
-    finally
-      //ID_ComboBox[i].Free;
-    end;
-  end;
-
-  for i := 0 to 20 do begin
-    TYPE_ComboBox[i] := TComboBox.Create(DrawGrid1);
-    try
-      with TYPE_ComboBox[i] do begin
-        Parent  := DrawGrid1;
-        Visible := false;
-        OnExit  := ComboBox_Exit;
-
-        Items.BeginUpdate;
-        Items.AddStrings(Elektro_Types);
-        Items.EndUpdate;
-      end;
-    finally
-      //TYPE_ComboBox[i].Free;
-    end;
-  end;
-
-  for i := 0 to 20 do begin
-    IN_ComboBox[i] := TComboBox.Create(DrawGrid1);
-    try
-      with IN_ComboBox[i] do begin
-        Parent  := DrawGrid1;
-        Visible := false;
-        OnExit  := ComboBox_Exit;
-
-        Items.BeginUpdate;
-        for j := 0 to 20 do
-        Items.Add(IntToStr(j+1));
-        Items.EndUpdate;
-      end;
-    finally
-      //IN_ComboBox[i].Free;
-    end;
-  end;
-
-  for i := 0 to 20 do
-  begin
-    OUT_ComboBox[i] := TComboBox.Create(DrawGrid1);
-    try
-      with OUT_ComboBox[i] do begin
-        Parent  := DrawGrid1;
-        Visible := false;
-        OnExit  := ComboBox_Exit;
-
-        Items.BeginUpdate;
-        for j := 0 to 20 do
-        Items.Add(IntToStr(j+1));
-        Items.EndUpdate;
-      end;
-    finally
-      //OUT_ComboBox[i].Free;
-    end;
-  end;
-
-  for i := 0 to 20 do
-  begin
-    OHM_Edit[i] := TEdit.Create(DrawGrid1);
-    OHM_Edit[i].Parent := DrawGrid1;
-    OHM_Edit[i].Visible := false;
-
-    AMPERE_Edit[i] := TEdit.Create(DrawGrid1);
-    AMPERE_Edit[i].Parent := DrawGrid1;
-    AMPERE_Edit[i].Visible := false;
-
-    VOLT_Edit[i] := TEdit.Create(DrawGrid1);
-    VOLT_Edit[i].Parent := DrawGrid1;
-    VOLT_Edit[i].Visible := false;
-  end;
 end;
 
 procedure TForm1.DrawGrid1DrawCell(Sender: TObject; ACol, ARow: Integer;
@@ -651,19 +647,21 @@ begin
     end;
 
     if IconBitmapChanged then begin
-      SetStretchBltMode(Handle, COLORONCOLOR);
-      res := StretchBlt(
-	           Handle,                      0, 0, rect.Right, rect.Bottom,
-          	 newIconBitmap.Canvas.Handle, 0, 0, rect.Right, rect.Bottom,
+      res := BitBlt(PaintBox1.Canvas.Handle,
+             0, 0,
+             PaintBox1.Width,
+             PaintBox1.Height,
+             oldIconBitmap.Canvas.Handle, 0, 0,
              SRCCOPY);
       if not res then begin
-        Brush.Color := clRed;
-        FillRect(rect);
+        Beep;
+        IconBitmapError := true;
+        PaintBox1.Repaint;
         exit;
       end;
-      Brush.Color := clLime;
-      FillRect(rect);
+
       IconBitmapChanged := false;
+      exit;
     end else begin
     Brush.Color := clWhite;
     FillRect(rect);
@@ -673,7 +671,7 @@ begin
         Pen.Color := clBlack;
         Pen.Width := 2;
         y1 := Trunc(((rect.Bottom + Pen.Width) / 2));
-        x1 := 10;
+        x1 := 7;
         MoveTo(x1,y1);
         LineTo(x1+15   ,y1   );
         MoveTo(x1+15   ,y1-10);
@@ -710,6 +708,49 @@ begin
 end;
 
 procedure TForm1.PaintBox1Click(Sender: TObject);
+  procedure RotateBitmap(Bmp: TBitmap; Rads: Single; AdjustSize: Boolean;
+  BkColor: TColor = clNone);
+  var
+  C: Single;
+  S: Single;
+  XForm: tagXFORM;
+  Tmp: TBitmap;
+  begin
+  C := Cos(Rads);
+  S := Sin(Rads);
+  XForm.eM11 := C;
+  XForm.eM12 := S;
+  XForm.eM21 := -S;
+  XForm.eM22 := C;
+  Tmp := TBitmap.Create;
+  try
+    Tmp.TransparentColor := Bmp.TransparentColor;
+    Tmp.TransparentMode := Bmp.TransparentMode;
+    Tmp.Transparent := Bmp.Transparent;
+    Tmp.Canvas.Brush.Color := BkColor;
+    if AdjustSize then
+    begin
+      Tmp.Width := Round(Bmp.Width * Abs(C) + Bmp.Height * Abs(S));
+      Tmp.Height := Round(Bmp.Width * Abs(S) + Bmp.Height * Abs(C));
+      XForm.eDx := (Tmp.Width - Bmp.Width * C + Bmp.Height * S) / 2;
+      XForm.eDy := (Tmp.Height - Bmp.Width * S - Bmp.Height * C) / 2;
+    end
+    else
+    begin
+      Tmp.Width := Bmp.Width;
+      Tmp.Height := Bmp.Height;
+      XForm.eDx := (Bmp.Width - Bmp.Width * C + Bmp.Height * S) / 2;
+      XForm.eDy := (Bmp.Height - Bmp.Width * S - Bmp.Height * C) / 2;
+    end;
+    SetGraphicsMode(Tmp.Canvas.Handle, GM_ADVANCED);
+    SetWorldTransform(Tmp.Canvas.Handle, XForm);
+    BitBlt(Tmp.Canvas.Handle, 0, 0, Tmp.Width, Tmp.Height, Bmp.Canvas.Handle,
+      0, 0, SRCCOPY);
+    Bmp.Assign(Tmp);
+  finally
+    Tmp.Free;
+  end;
+  end;
 var
   res: LongBool;
 begin
@@ -717,18 +758,45 @@ begin
          0, 0,
          PaintBox1.Width,
          PaintBox1.Height,
-         PaintBox1.Canvas.Handle,
-         0, 0,
+         PaintBox1.Canvas.Handle, 0,0,
          SRCCOPY);
   if not res then begin
+    Beep;
     IconBitmapError := true;
     PaintBox1.Repaint;
     exit;
   end;
 
-  setmaps(oldIconBitmap,newIconBitmap);
-  CoarseRotate(46);
+  RotateBitmap(oldIconBitmap,1.57,true,clWhite);
   IconBitmapChanged := true;
+  PaintBox1.Repaint;
+end;
+
+procedure TForm1.PaintBox1MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Button = mbLeft then
+  PaintBox1.BeginDrag(false);
+end;
+
+procedure TForm1.JvDesignPanel1DragOver(Sender, Source: TObject; X,
+  Y: Integer; State: TDragState; var Accept: Boolean);
+begin
+  if (Source is TPaintBox) then
+  Accept := true;
+end;
+
+procedure TForm1.JvDesignPanel1DragDrop(Sender, Source: TObject; X,
+  Y: Integer);
+begin
+(*
+  if (Source is TPaintBox) then
+    Label1.Caption := TEdit(Source).Text
+  else if (Source is TListbox) then
+  begin
+    index := TListbox(Source).ItemIndex;
+    Label1.Caption := TListbox(Source).Items[index];
+  end; *)
 end;
 
 end.
